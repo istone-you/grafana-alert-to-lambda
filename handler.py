@@ -5,20 +5,32 @@ import boto3
 
 client = boto3.client('ecs')
 
+def authenticate_grafana(headers):
+    """
+    Grafanaの認証を行う
+    """
+    grafana_authorization = headers.get("authorization")
+
+    username = os.environ['USERNAME']
+    password = os.environ['PASSWORD']
+
+    credentials = f"{username}:{password}".encode("utf-8")
+    encoded_credentials = base64.b64encode(credentials).decode("utf-8")
+    lambda_authorization = f"Basic {encoded_credentials}"
+
+    return grafana_authorization == lambda_authorization
+
 def lambda_handler(event, context):
+    """
+    認証に成功したら、ECSインスタンスを再起動する
+    """
     try:
         headers = event.get("headers", {})
-        grafana_authorization = headers.get("authorization")
+        is_authenticated = authenticate_grafana(headers)
 
-        username = os.environ['USERNAME']
-        password = os.environ['PASSWORD']
-
-        credentials = f"{username}:{password}".encode("utf-8")
-        encoded_credentials = base64.b64encode(credentials).decode("utf-8")
-        lambda_authorization = f"Basic {encoded_credentials}"
 
         # ユーザー名とパスワードが一致している場合正常に動作
-        if grafana_authorization == lambda_authorization:
+        if is_authenticated:
 
             print("認証に成功しました。")
 
